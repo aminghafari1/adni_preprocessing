@@ -1,6 +1,6 @@
 #! /bin/bash
 sub_dir="/home/aghaffari/adni/002_1261"
-fmri_dir="/home/aghaffari/adni/002_1261/func/2019-05-01_12_14_22.0/I1270025"  ## might be able to automate later
+fmri_dir="/home/aghaffari/adni/002_1261/func/2019-05-01_12_14_22.0/I1270025"  ## Automate after getting some more subjects
 phase_dir="/home/aghaffari/adni/002_1261/fmap/2019-05-01_12_14_22.0/I1270031"
 mag1_dir="/home/aghaffari/adni/002_1261/fmap/2019-05-01_12_14_22.0/I1270026"
 mag2_dir="/home/aghaffari/adni/002_1261/fmap/2019-05-01_12_14_22.0/I1270032"
@@ -17,6 +17,20 @@ echo "Converting fMRI dicom files to nifti files... "
 mv "$temp_dir"/*.nii.gz "$inputs_dir/fmri_input.nii.gz"
 mv "$temp_dir"/*.json "$inputs_dir/fmri_input.json"
 rm -rf "$temp_dir"/*
+comment
+echo "Getting slice timing information from the json file and saving it in a text file for FSL... "
+python3 get_slice_timing_file.py \
+    "$inputs_dir/fmri_input.json" \
+    "$inputs_dir/fmri_input.nii.gz" \
+    "$inputs_dir/slicetiming_fsl.txt"
+
+echo "Now correcting for slice timing using FSL's slicetimer... "
+slicetimer \
+    -i "$inputs_dir/fmri_input.nii.gz" \
+    -o "$inputs_dir/fmri_stc.nii.gz" \
+    -r "$(fslinfo "$inputs_dir/fmri_input.nii.gz" | awk '/^pixdim4/ {print $2}')" \
+    --tcustom="$inputs_dir/slicetiming_fsl.txt"
+<< comment
 
 echo "Converting phase dicom files to nifti files... "
 ~/dcmniix/dcm2niix -z y -o "$temp_dir" "$phase_dir"
@@ -40,6 +54,8 @@ echo "Running synthstrip for brain extraction on the magnitude images... "
 ~/synthstrip-singularity -i "$inputs_dir/mag1.nii.gz" -o "$inputs_dir/mag1_brain.nii.gz" -m "$inputs_dir/mag1_brain_mask.nii.gz"
 ~/synthstrip-singularity -i "$inputs_dir/mag2.nii.gz" -o "$inputs_dir/mag2_brain.nii.gz" -m "$inputs_dir/mag2_brain_mask.nii.gz"
 
+## add slice timing and motion correction here
+
 echo "Getting mean of the fMRI time series for registration... "
 fslmaths "$inputs_dir/fmri_input.nii.gz" -Tmean "$inputs_dir/fmri_avg.nii.gz"
 ~/synthstrip-singularity -i "$inputs_dir/fmri_avg.nii.gz" -o "$inputs_dir/fmri_avg_brain.nii.gz" -m "$inputs_dir/fmri_avg_brain_mask.nii.gz"
@@ -59,6 +75,6 @@ flirt -in "$inputs_dir/mag1_brain_unwarped.nii.gz" -ref "$inputs_dir/fmri_avg_br
 
 echo "Taking the field map to the EPI space."
 flirt -in "$inputs_dir/fieldmap_smooth.nii.gz" -ref "$inputs_dir/fmri_avg_brain.nii.gz" -applyxfm -init "$inputs_dir/mag1_to_epi.mat" -out "$inputs_dir/fieldmap_epi.nii.gz"
-comment
+
 echo "Applying the fieldmap to unwarp the fMRI average brain image."
 fugue -i "$inputs_dir/fmri_avg_brain.nii.gz" --dwell=0.000570006 --unwarpdir=y --loadfmap="$inputs_dir/fieldmap_epi.nii.gz" -u "$inputs_dir/fmri_avg_brain_unwarped.nii.gz"
