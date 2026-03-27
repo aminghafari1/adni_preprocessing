@@ -11,13 +11,14 @@ if [ ! -d "$sub_dir/compressed_inputs" ]; then
         mkdir -p "$sub_dir/compressed_inputs"
 fi
 inputs_dir="$sub_dir/compressed_inputs"
+
 << comment
 echo "Converting fMRI dicom files to nifti files... "
 ~/dcmniix/dcm2niix -z y -o "$temp_dir" "$fmri_dir"
 mv "$temp_dir"/*.nii.gz "$inputs_dir/fmri_input.nii.gz"
 mv "$temp_dir"/*.json "$inputs_dir/fmri_input.json"
 rm -rf "$temp_dir"/*
-comment
+
 echo "Getting slice timing information from the json file and saving it in a text file for FSL... "
 python3 get_slice_timing_file.py \
     "$inputs_dir/fmri_input.json" \
@@ -30,6 +31,21 @@ slicetimer \
     -o "$inputs_dir/fmri_stc.nii.gz" \
     -r "$(fslinfo "$inputs_dir/fmri_input.nii.gz" | awk '/^pixdim4/ {print $2}')" \
     --tcustom="$inputs_dir/slicetiming_fsl.txt"
+
+
+comment
+
+echo "Now correcting for motion using FSL's mcflirt... "
+mcflirt -in "$inputs_dir/fmri_stc.nii.gz" -out "$inputs_dir/fmri_mc.nii.gz" -plots  -meanvol
+
+python3 compute_fd.py \
+    "$inputs_dir/fmri_mc.nii.gz.par" \
+    "$inputs_dir/framewise.txt"
+
+echo "Now computing dvars using FSL's fsl_motion_outliers... "
+fsl_motion_outliers -i "$inputs_dir/fmri_mc.nii.gz" -s "$inputs_dir/dvars_values.txt" -o "$inputs_dir/dvars_volumes.txt"   --nomoco
+## --nomoco because it is already done.
+
 << comment
 
 echo "Converting phase dicom files to nifti files... "
@@ -78,3 +94,5 @@ flirt -in "$inputs_dir/fieldmap_smooth.nii.gz" -ref "$inputs_dir/fmri_avg_brain.
 
 echo "Applying the fieldmap to unwarp the fMRI average brain image."
 fugue -i "$inputs_dir/fmri_avg_brain.nii.gz" --dwell=0.000570006 --unwarpdir=y --loadfmap="$inputs_dir/fieldmap_epi.nii.gz" -u "$inputs_dir/fmri_avg_brain_unwarped.nii.gz"
+
+comment
