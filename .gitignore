@@ -1,0 +1,14 @@
+# data folders
+002_*/
+data/
+rawdata/
+derivatives/
+
+# neuroimaging files
+*.nii
+*.nii.gz
+*.dcm
+
+# temp/logs
+tmp/
+*.log
