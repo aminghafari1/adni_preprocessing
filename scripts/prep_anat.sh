@@ -12,7 +12,7 @@ if [ ! -d "$sub_dir/compressed_inputs" ]; then
         mkdir -p "$sub_dir/compressed_inputs"
 fi
 inputs_dir="$sub_dir/compressed_inputs"
-
+<< comment
 echo "Converting anatomical dicom files to nifti files... "
 ~/dcmniix/dcm2niix -z y -o "$temp_dir" "$anat_dir"
 mv "$temp_dir"/*.nii.gz "$inputs_dir/T1.nii.gz"
@@ -52,5 +52,31 @@ antsRegistration -d 3 \
 -f 4x2x1 -s 2x1x0 \
 -x [$MNImask, $t1_brain_mask] 
 
+
+
+t1="$inputs_dir/T1.nii.gz"
+t1_brain="${inputs_dir}/T1_BrainExtractionBrain.nii.gz"
+t1_brain_mask="${inputs_dir}/T1_BrainExtractionMask.nii.gz"
+
 antsApplyTransforms -d 3 -i $t1 -r $MNI -t ${inputs_dir}/T1_to_MNI_1Warp.nii.gz \
     -t ${inputs_dir}/T1_to_MNI_0GenericAffine.mat -o ${inputs_dir}/T1_in_MNI.nii.gz
+
+echo "segmentation"
+fast -t 1 -n 3 -H 0.1 -I 4 -l 20.0 -o "${inputs_dir}/T1_seg" $t1_brain > /dev/null 2>&1
+
+mv ${inputs_dir}/T1_seg_pve_0.nii.gz ${inputs_dir}/T1_CSF.nii.gz
+mv ${inputs_dir}/T1_seg_pve_1.nii.gz ${inputs_dir}/T1_GM.nii.gz
+mv ${inputs_dir}/T1_seg_pve_2.nii.gz ${inputs_dir}/T1_WM.nii.gz
+comment
+echo "move the segmentation files to the mni space"
+for tissue in CSF GM WM; do
+    input_seg="${inputs_dir}/T1_${tissue}.nii.gz"
+    output_seg="${inputs_dir}/T1_${tissue}_MNI.nii.gz"
+    antsApplyTransforms -d 3 -i $input_seg -r $MNI \
+        -t ${inputs_dir}/T1_to_MNI_1Warp.nii.gz \
+        -t ${inputs_dir}/T1_to_MNI_0GenericAffine.mat \
+        -o $output_seg \
+        -n NearestNeighbor
+    fslmaths $output_seg -thr 0.5 -bin $output_seg  
+
+done
