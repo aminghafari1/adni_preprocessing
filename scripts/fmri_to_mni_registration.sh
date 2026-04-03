@@ -3,33 +3,27 @@ cwd="$(pwd)"
 set -euo pipefail
 source "$(dirname "$0")/config.sh"
 t1="$inputs_dir/T1.nii.gz"
-t1_brain="$inputs_dir/T1_BrainExtractionBrain.nii.gz"
-fmri_sc="$inputs_dir/fmri_sc.nii.gz"
+t1_brain="$prep_anat/T1_brain.nii.gz"
+fmri_sc="$prep_func/fmri_sc.nii.gz"
 
-<<'COMMENT'
 echo "Calculating mean functional image across time for registration..."
-fslmaths $fmri_sc -Tmean $inputs_dir/fmri_sc_avg.nii.gz
-fmri_sc_avg="$inputs_dir/fmri_sc_avg.nii.gz"
+fslmaths $fmri_sc -Tmean $prep_func/fmri_sc_avg.nii.gz
+fmri_sc_avg="$prep_func/fmri_mc_avg.nii.gz"
 
 echo "🧠🔄 functional brain to anatomical 🔄🧩"
-~/synthstrip-singularity -i $fmri_sc_avg -o $inputs_dir/fmri_sc_avg_brain.nii.gz -m $inputs_dir/fmri_sc_avg_brain_mask.nii.gz
-fmri_sc_avg_brain="$inputs_dir/fmri_sc_avg_brain.nii.gz"
-COMMENT
-fmri_sc_avg="$inputs_dir/fmri_sc_avg.nii.gz"
-fmri_sc_avg_brain="$inputs_dir/fmri_sc_avg_brain.nii.gz"
+~/synthstrip-singularity -i $fmri_sc_avg -o $prep_func/fmri_sc_avg_brain.nii.gz -m $prep_func/fmri_sc_avg_brain_mask.nii.gz
+fmri_sc_avg_brain="$prep_func/fmri_sc_avg_brain.nii.gz"
+
 if [ "$reg_method" = "fsl" ]; then
-<<'COMMENT'
     echo "Using fsl for registration..."
     echo "🧠🔄 Now registering functional to anatomical... 🔄"
-    epi_reg --epi=$fmri_sc_avg --t1=$t1 --t1brain=$t1_brain --wmseg=$inputs_dir/T1_WM.nii.gz --out=$inputs_dir/fmri_to_T1
-    flirt -in $fmri_sc_avg -ref $t1 -applyxfm -init $inputs_dir/fmri_to_T1.mat -out $inputs_dir/fmri_sc_avg_in_T1.nii.gz  ## only for qc
-COMMENT
-    echo "🧠🔄 Now registering anatomical to MNI... 🔄"
-    aff_fmri_to_t1=$inputs_dir/fmri_to_T1.mat
-    t1_to_MNI_warp=$inputs_dir/t1_to_mni_fnirt_coeffs.nii.gz
+    epi_reg --epi=$fmri_sc_avg --t1=$t1 --t1brain=$t1_brain --wmseg=$prep_anat/T1_WM.nii.gz --out=$prep_transforms/fmri_to_T1 
+    mv $prep_transforms/fmri_to_T1.nii.gz $prep_func/fmri_sc_avg_in_T1.nii.gz  ## only for qc
+    aff_fmri_to_t1=$prep_transforms/fmri_to_T1.mat
+    t1_to_MNI_warp=$prep_transforms/T1_to_MNI.nii.gz
     ## fnirt already contains t1_to_MNI_init=${inputs_dir}/T1_to_MNI_0GenericAffine.mat, so we don't have its argument here.
-    applywarp --in=$fmri_sc_avg --ref=$MNI --warp=$t1_to_MNI_warp --premat=$aff_fmri_to_t1 --out=$inputs_dir/fmri_avg_in_MNI.nii.gz
-    applywarp --in=$fmri_sc_avg_brain --ref=$MNIBRAIN --warp=$t1_to_MNI_warp --premat=$aff_fmri_to_t1 --out=$inputs_dir/fmri_avg_brain_in_MNI.nii.gz
+    applywarp --in=$fmri_sc_avg --ref=$MNI --warp=$t1_to_MNI_warp --premat=$aff_fmri_to_t1 --out=$prep_func/fmri_avg_in_MNI.nii.gz
+    applywarp --in=$fmri_sc_avg_brain --ref=$MNIBRAIN --warp=$t1_to_MNI_warp --premat=$aff_fmri_to_t1 --out=$prep_func/fmri_avg_brain_in_MNI.nii.gz
     #applywarp --in=$fmri_sc --ref=$MNI --warp=$t1_to_MNI_warp --premat=$aff_fmri_to_t1 --out=$inputs_dir/fmri_sc_MNI.nii.gz
 
 elif [ "$reg_method" = "ants" ]; then
@@ -41,19 +35,19 @@ elif [ "$reg_method" = "ants" ]; then
     -f "$t1_brain" \
     -m "$fmri_sc_avg_brain" \
     -t a \
-    -o "${inputs_dir}/fmri2T1_"
+    -o "${prep_transforms}/fmri2T1_"
 
-    aff_fmri_to_t1=${inputs_dir}/fmri2T1_0GenericAffine.mat
-    t1_to_MNI_init=${inputs_dir}/T1_to_MNI_0GenericAffine.mat
-    t1_to_MNI_warp=${inputs_dir}/T1_to_MNI_1Warp.nii.gz
+    aff_fmri_to_t1=${prep_transforms}/fmri2T1_0GenericAffine.mat
+    t1_to_MNI_init=${prep_transforms}/T1_to_MNI_0GenericAffine.mat
+    t1_to_MNI_warp=${prep_transforms}/T1_to_MNI_1Warp.nii.gz
 
     antsApplyTransforms -d 3 -i $fmri_avg_brain -r $MNIbrain \
-        -t $t1_to_MNI_warp -t $t1_to_MNI_init -t $aff_fmri_to_t1 -o $inputs_dir/fmri_avg_in_MNI.nii.gz
+        -t $t1_to_MNI_warp -t $t1_to_MNI_init -t $aff_fmri_to_t1 -o $prep_func/fmri_avg_in_MNI.nii.gz
 
     input_4d="$fmri_sc"
-    output_4d="$inputs_dir/fmri_sc_MNI.nii.gz"
+    output_4d="$prep_func/fmri_sc_MNI.nii.gz"
     ref="$MNI"
-    tempdir="$inputs_dir/tempdir_fmri_MNI"
+    tempdir="$prep_func/tempdir_fmri_MNI"
     mkdir -p $tempdir
     cd "$tempdir"
     echo "Splitting 4D fmri data into 3D volumes..."

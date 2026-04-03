@@ -2,88 +2,66 @@
 
 set -euo pipefail
 source "$(dirname "$0")/config.sh"
-
-mkdir -p "$sub_dir/temp"
-temp_dir="$sub_dir/temp"
-if [ ! -d $inputs_dir ]; then
-        mkdir -p $inputs_dir
-fi
-
-echo "Converting fMRI dicom files to nifti files... "
-~/dcmniix/dcm2niix -z y -o "$temp_dir" "$fmri_dir"
-mv "$temp_dir"/*.nii.gz "$inputs_dir/fmri_input.nii.gz"
-mv "$temp_dir"/*.json "$inputs_dir/fmri_input.json"
-rm -rf "$temp_dir"/*
-
-echo "Converting phase dicom files to nifti files... "
-~/dcmniix/dcm2niix -z y -o "$temp_dir" "$phase_dir"
-mv "$temp_dir"/*.nii.gz "$inputs_dir/phase_difference.nii.gz"
-mv "$temp_dir"/*.json "$inputs_dir/phase_difference.json"
-rm -rf "$temp_dir"/*
-
-echo "Converting magnitude 1 dicom files to nifti files... "
-~/dcmniix/dcm2niix -z y -o "$temp_dir" "$mag1_dir"
-mv "$temp_dir"/*.nii.gz "$inputs_dir/mag1.nii.gz"
-mv "$temp_dir"/*.json "$inputs_dir/mag1.json"
-rm -rf "$temp_dir"/*
-
-echo "Converting magnitude 2 dicom files to nifti files... "
-~/dcmniix/dcm2niix -z y -o "$temp_dir" "$mag2_dir"
-mv "$temp_dir"/*.nii.gz "$inputs_dir/mag2.nii.gz"
-mv "$temp_dir"/*.json "$inputs_dir/mag2.json"
-rm -rf "$temp_dir"/*
+echo "Processing subject: $sub_code"
+mkdir -p "$adni_preprocessing"
+mkdir -p "$prep_dir"
+mkdir -p "$prep_fmap"
+mkdir -p "$prep_func"
+mkdir -p "$prep_transforms"
 
 echo "Running synthstrip for brain extraction on the magnitude images... "
-~/synthstrip-singularity -i "$inputs_dir/mag1.nii.gz" -o "$inputs_dir/mag1_brain.nii.gz" -m "$inputs_dir/mag1_brain_mask.nii.gz"
-~/synthstrip-singularity -i "$inputs_dir/mag2.nii.gz" -o "$inputs_dir/mag2_brain.nii.gz" -m "$inputs_dir/mag2_brain_mask.nii.gz"
+~/synthstrip-singularity -i "$inputs_dir/mag1.nii.gz" -o "$prep_fmap/mag1_brain.nii.gz" 
+~/synthstrip-singularity -i "$inputs_dir/mag2.nii.gz" -o "$prep_fmap/mag2_brain.nii.gz" 
 
 echo "Getting slice timing information from the json file and saving it in a text file for FSL... "
 python3 get_slice_timing_file.py \
     "$inputs_dir/fmri_input.json" \
     "$inputs_dir/fmri_input.nii.gz" \
-    "$inputs_dir/slicetiming_fsl.txt"
+    "$prep_func/slicetiming_fsl.txt"
 
 echo "Now correcting for slice timing using FSL's slicetimer... "
 
 slicetimer \
     -i "$inputs_dir/fmri_input.nii.gz" \
-    -o "$inputs_dir/fmri_stc.nii.gz" \
+    -o "$prep_func/fmri_stc.nii.gz" \
     -r "$(fslinfo "$inputs_dir/fmri_input.nii.gz" | awk '/^pixdim4/ {print $2}')" \
-    --tcustom="$inputs_dir/slicetiming_fsl.txt"
+    --tcustom="$prep_func/slicetiming_fsl.txt"
 
 echo "Now correcting for motion using FSL's mcflirt... "
-mcflirt -in "$inputs_dir/fmri_stc.nii.gz" -out "$inputs_dir/fmri_mc.nii.gz" -plots  -meanvol
+mcflirt -in "$prep_func/fmri_stc.nii.gz" -out "$prep_func/fmri_mc.nii.gz" -plots  -meanvol
 
+confounds_dir="$prep_func/confounds"
+mkdir -p "$confounds_dir"
 python3 compute_fd.py \
-    "$inputs_dir/fmri_mc.nii.gz.par" \
-    "$inputs_dir/framewise.txt"
+    "$prep_func/fmri_mc.nii.gz.par" \
+    "$confounds_dir/framewise.txt"
 
 echo "Now computing dvars using FSL's fsl_motion_outliers... "
-fsl_motion_outliers -i "$inputs_dir/fmri_mc.nii.gz" -s "$inputs_dir/dvars_values.txt" -o "$inputs_dir/dvars_volumes.txt"   --nomoco
+fsl_motion_outliers -i "$prep_func/fmri_mc.nii.gz" -s "$confounds_dir/dvars_values.txt" -o "$confounds_dir/dvars_volumes.txt"   --nomoco
 ## --nomoco because it is already done.
 
 echo "Getting mean of the fMRI time series for registration... "
-fslmaths "$inputs_dir/fmri_mc.nii.gz" -Tmean "$inputs_dir/fmri_mc_avg.nii.gz"
-~/synthstrip-singularity -i "$inputs_dir/fmri_mc_avg.nii.gz" -o "$inputs_dir/fmri_mc_avg_brain.nii.gz" -m "$inputs_dir/fmri_mc_avg_brain_mask.nii.gz"
+fslmaths "$prep_func/fmri_mc.nii.gz" -Tmean "$prep_func/fmri_mc_avg.nii.gz"
+~/synthstrip-singularity -i "$prep_func/fmri_mc_avg.nii.gz" -o "$prep_func/fmri_mc_avg_brain.nii.gz" -m "$prep_func/fmri_mc_avg_brain_mask.nii.gz"
 
 echo "Preparing the fieldmap using FSL's fsl_prepare_fieldmap... "
-fsl_prepare_fieldmap SIEMENS "$inputs_dir/phase_difference.nii.gz" "$inputs_dir/mag1_brain.nii.gz" "$inputs_dir/fieldmap_rads.nii.gz" 2.46
+fsl_prepare_fieldmap SIEMENS "$inputs_dir/phase_difference.nii.gz" "$prep_fmap/mag1_brain.nii.gz" "$prep_fmap/fieldmap_rads.nii.gz" 2.46
 ## This 2.46 is the difference between the two TEs and should be automated later by reading the json files.
 
 echo "We need to take the field map to the same space as EPI, first, smooth using fugure."
-fugue --loadfmap="$inputs_dir/fieldmap_rads.nii.gz" -s 2.0 --savefmap="$inputs_dir/fieldmap_smooth.nii.gz"
+fugue --loadfmap="$prep_fmap/fieldmap_rads.nii.gz" -s 2.0 --savefmap="$prep_fmap/fieldmap_smooth.nii.gz"
 
 echo "Warping the magnitude image using the fieldmap."
-fugue -i "$inputs_dir/mag1_brain.nii.gz" --dwell=0.000570006 --unwarpdir=y- --loadfmap="$inputs_dir/fieldmap_smooth.nii.gz" -u "$inputs_dir/mag1_brain_warped.nii.gz"
+fugue -i "$prep_fmap/mag1_brain.nii.gz" --dwell=0.000570006 --unwarpdir=y- --loadfmap="$prep_fmap/fieldmap_smooth.nii.gz" -u "$prep_fmap/mag1_brain_warped.nii.gz"
 
 echo "Registering the unwarped magnitude image to EPI image"
-flirt -in "$inputs_dir/mag1_brain_warped.nii.gz" -ref "$inputs_dir/fmri_mc_avg_brain.nii.gz" -out "$inputs_dir/mag1_to_epi.nii.gz" -omat "$inputs_dir/mag1_to_epi.mat" -dof 6 -cost normmi
+flirt -in "$prep_fmap/mag1_brain_warped.nii.gz" -ref "$prep_func/fmri_mc_avg_brain.nii.gz" -out "$prep_fmap/mag1_to_epi.nii.gz" -omat "$prep_transforms/mag1_to_epi.mat" -dof 6 -cost normmi
 
 echo "Taking the field map to the EPI space."
-flirt -in "$inputs_dir/fieldmap_smooth.nii.gz" -ref "$inputs_dir/fmri_mc_avg_brain.nii.gz" -applyxfm -init "$inputs_dir/mag1_to_epi.mat" -out "$inputs_dir/fieldmap_epi.nii.gz"
+flirt -in "$prep_fmap/fieldmap_smooth.nii.gz" -ref "$prep_func/fmri_mc_avg_brain.nii.gz" -applyxfm -init "$prep_transforms/mag1_to_epi.mat" -out "$prep_fmap/fieldmap_epi.nii.gz"
 
 echo "Applying the fieldmap to unwarp the fMRI average brain image."
-fugue -i "$inputs_dir/fmri_mc_avg_brain.nii.gz" --dwell=0.000570006 --unwarpdir=y --loadfmap="$inputs_dir/fieldmap_epi.nii.gz" -u "$inputs_dir/fmri_mc_avg_brain_unwarped.nii.gz"
+fugue -i "$prep_func/fmri_mc_avg_brain.nii.gz" --dwell=0.000570006 --unwarpdir=y --loadfmap="$prep_fmap/fieldmap_epi.nii.gz" -u "$prep_func/fmri_sc_avg_brain.nii.gz"
 
 echo "Now applying the same unwarping to the entire fMRI time series... "
-fugue -i "$inputs_dir/fmri_mc.nii.gz" --dwell=0.000570006 --unwarpdir=y --loadfmap="$inputs_dir/fieldmap_epi.nii.gz" -u "$inputs_dir/fmri_sc.nii.gz"
+fugue -i "$prep_func/fmri_mc.nii.gz" --dwell=0.000570006 --unwarpdir=y --loadfmap="$prep_fmap/fieldmap_epi.nii.gz" -u "$prep_func/fmri_sc.nii.gz"

@@ -3,38 +3,31 @@
 set -euo pipefail
 source "$(dirname "$0")/config.sh"
 echo "the registration method you chose is $reg_method"
-mkdir -p "$sub_dir/temp"
-temp_dir="$sub_dir/temp"
-if [ ! -d $inputs_dir ]; then
-        mkdir -p $inputs_dir
-fi
+mkdir -p "$prep_anat"
 
-echo "Converting anatomical dicom files to nifti files... "
-~/dcmniix/dcm2niix -z y -o "$temp_dir" "$anat_dir"
-mv "$temp_dir"/*.nii.gz "$inputs_dir/T1.nii.gz"
-mv "$temp_dir"/*.json "$inputs_dir/T1.json"
-rm -rf "$temp_dir"/*
-
+t1_init="${inputs_dir}/T1.nii.gz"
 echo "Brain extraction using antsBrainExtraction.sh... "
-N4BiasFieldCorrection -d 3 -i $t1 -o ${inputs_dir}/T1_n4.nii.gz \
+N4BiasFieldCorrection -d 3 -i $t1_init -o ${prep_anat}/T1_n4.nii.gz \
 -r 1 -s 4 -v > /dev/null 2>&1
-t1="$inputs_dir/T1_n4.nii.gz"
-
-antsBrainExtraction.sh -d 3 -a $t1 -e $MNI\
-      -m $MNIMASK -o "${inputs_dir}/T1_" > /dev/null 2>&1
+t1="$prep_anat/T1_n4.nii.gz"
 
 
-t1_brain="${inputs_dir}/T1_BrainExtractionBrain.nii.gz"
-t1_brain="${inputs_dir}/T1_BrainExtractionBrain.nii.gz"
-t1_brain_mask="${inputs_dir}/T1_BrainExtractionMask.nii.gz"
+
 
 echo "🧠🔄 Aligning Anatomical brain to MNI brain 🔄🧩"
 
 if [ "$reg_method" = "ants" ]; then
-    echo "Using ANTs for registration..."
-
+    echo "Using ANTs for brain extraction and registration..."
+    echo "Brain extraction"
+    antsBrainExtraction.sh -d 3 -a $t1 -e $MNI\
+         -m $MNIMASK -o "${prep_anat}/T1_" > /dev/null 2>&1
+    mv ${prep_anat}/T1_BrainExtractionBrain.nii.gz ${prep_anat}/T1_brain.nii.gz
+    mv ${prep_anat}/T1_BrainExtractionMask.nii.gz ${prep_anat}/T1_brain_mask.nii.gz
+    t1_brain="${prep_anat}/T1_brain.nii.gz"
+    t1_brain_mask="${prep_anat}/T1_brain_mask.nii.gz"
+    echo "Registration"
     antsRegistration -d 3 \
-    -o "${inputs_dir}/T1_to_MNI_" \
+    -o "${prep_transforms}/T1_to_MNI_" \
     -v -u 1 -z 1 \
     --winsorize-image-intensities [0.005,0.995] \
     -r [$MNI, $t1, 1] \
@@ -54,27 +47,48 @@ if [ "$reg_method" = "ants" ]; then
     -f 4x2x1 -s 2x1x0 \
     -x [$MNIMASK, $t1_brain_mask] 
 
-    antsApplyTransforms -d 3 -i $t1 -r $MNI -t ${inputs_dir}/T1_to_MNI_1Warp.nii.gz \
-        -t ${inputs_dir}/T1_to_MNI_0GenericAffine.mat -o ${inputs_dir}/T1_in_MNI.nii.gz
+    antsApplyTransforms -d 3 -i $t1 -r $MNI -t ${prep_transforms}/T1_to_MNI_1Warp.nii.gz \
+        -t ${prep_transforms}/T1_to_MNI_0GenericAffine.mat -o ${prep_anat}/T1_in_MNI.nii.gz
 
 elif [ "$reg_method" = "fsl" ]; then
     echo "Using FSL for registration..."
-    flirt -in $t1 -ref $MNI -omat ${inputs_dir}/t1_to_mni_flirt.mat -out ${inputs_dir}/T1_in_MNI_flirt \
+    flirt -in $t1 -ref $MNI -omat ${prep_transforms}/t1_to_mni_init.mat -out ${prep_anat}/T1_in_MNI_init \
           -searchrx -30 30 -searchry -30 30 -searchrz -30 30
-    fnirt --in=$t1 --aff=${inputs_dir}/t1_to_mni_flirt.mat --cout=${inputs_dir}/t1_to_mni_fnirt_coeffs.nii.gz \
+    fnirt --in=$t1 --aff=${prep_transforms}/t1_to_mni_init.mat --cout=${prep_transforms}/T1_to_MNI.nii.gz \
           --config=T1_2_MNI152_2mm  --ref=$MNI 
-    applywarp --ref=$MNI --in=$t1 --warp=${inputs_dir}/t1_to_mni_fnirt_coeffs.nii.gz \
-          --out=${inputs_dir}/T1_in_MNI_fnirt.nii.gz
+    applywarp --ref=$MNI --in=$t1 --warp=${prep_transforms}/T1_to_MNI.nii.gz \
+          --out=${prep_anat}/T1_in_MNI.nii.gz
+    echo "Now getting MNI to T1 transformation"
+    invwarp -w ${prep_transforms}/T1_to_MNI.nii.gz -r $t1 -o ${prep_transforms}/MNI_to_T1.nii.gz
+    applywarp --in=$MNIMASK --ref=$t1 --warp=${prep_transforms}/MNI_to_T1.nii.gz \
+          --out=${prep_anat}/FDG_mask_in_T1.nii.gz
+    fslmaths $t1 -mas ${prep_anat}/FDG_mask_in_T1.nii.gz $prep_anat/T1_brain.nii.gz
+    t1_brain="${prep_anat}/T1_brain.nii.gz"
+    
 else
     echo "Invalid registration method specified. Please use 'ants' or 'fsl'."
     exit 1
 fi
 
 echo "segmentation"
-fast -t 1 -n 3 -H 0.1 -I 4 -l 20.0 -o "${inputs_dir}/T1_seg" $t1_brain > /dev/null 2>&1
+fast -t 1 -n 3 -H 0.1 -I 4 -l 20.0 -o "${prep_anat}/T1_seg" $t1_brain > /dev/null 2>&1
 
-mv ${inputs_dir}/T1_seg_pve_0.nii.gz ${inputs_dir}/T1_CSF.nii.gz
-mv ${inputs_dir}/T1_seg_pve_1.nii.gz ${inputs_dir}/T1_GM.nii.gz
-mv ${inputs_dir}/T1_seg_pve_2.nii.gz ${inputs_dir}/T1_WM.nii.gz
+types=("CSF" "GM" "WM")
+
+echo "Renaming and moving segmentations to MNI space"
+
+for i in {0..2}; do
+    type=${types[$i]}
+
+    # Rename
+    mv ${prep_anat}/T1_seg_pve_${i}.nii.gz ${prep_anat}/T1_${type}.nii.gz
+
+    # Apply warp
+    applywarp \
+        --in=${prep_anat}/T1_${type}.nii.gz \
+        --ref=$MNI \
+        --warp=${prep_transforms}/T1_to_MNI.nii.gz \
+        --out=${prep_anat}/MNI_${type}.nii.gz
+done
 
 
