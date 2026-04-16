@@ -18,4 +18,10 @@ echo "➡️ Step 2: Anatomical preprocessing"
 echo "➡️ Step 3: fMRI → MNI registration"
 ./fmri_to_mni_registration.sh
 
+echo "➡️ Step 4: Smoothing"
+./spatial_smoothing.sh
+
+echo "➡️ Step 5: Nuisance regression"
+./nuisance_regression_bp_filtering.sh
+
 echo "✅ Pipeline finished successfully!"

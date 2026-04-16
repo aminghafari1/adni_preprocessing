@@ -1,7 +1,10 @@
-#! /bin/bash
+#!/bin/bash
 set -euo pipefail
 source "$(dirname "$0")/config.sh"
+
 mkdir -p $inputs_dir
+
+echo "$prep_dir"
 n_dirs=$(find "$fmap_dir" -mindepth 1 -maxdepth 1 -type d | wc -l)
 temp_dir="$sub_dir/temp"
 rm -rf "$temp_dir"

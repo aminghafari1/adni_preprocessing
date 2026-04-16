@@ -22,9 +22,12 @@ if [ "$reg_method" = "fsl" ]; then
     aff_fmri_to_t1=$prep_transforms/fmri_to_T1.mat
     t1_to_MNI_warp=$prep_transforms/T1_to_MNI.nii.gz
     ## fnirt already contains t1_to_MNI_init=${inputs_dir}/T1_to_MNI_0GenericAffine.mat, so we don't have its argument here.
+    echo "Transferring images to MNI space using the computed transforms..."
     applywarp --in=$fmri_sc_avg --ref=$MNI --warp=$t1_to_MNI_warp --premat=$aff_fmri_to_t1 --out=$prep_func/fmri_avg_in_MNI.nii.gz
     applywarp --in=$fmri_sc_avg_brain --ref=$MNIBRAIN --warp=$t1_to_MNI_warp --premat=$aff_fmri_to_t1 --out=$prep_func/fmri_avg_brain_in_MNI.nii.gz
-    #applywarp --in=$fmri_sc --ref=$MNI --warp=$t1_to_MNI_warp --premat=$aff_fmri_to_t1 --out=$inputs_dir/fmri_sc_MNI.nii.gz
+    applywarp --in=$fmri_sc --ref=$MNI --warp=$t1_to_MNI_warp --premat=$aff_fmri_to_t1 --out=$prep_func/fmri_sc_MNI.nii.gz
+    echo "Get raw fMRI in MNI space for QC..."
+    applywarp --in=$inputs_dir/fmri_input.nii.gz --ref=$MNI --warp=$t1_to_MNI_warp --premat=$aff_fmri_to_t1 --out=$prep_func/fmri_input_MNI.nii.gz
 
 elif [ "$reg_method" = "ants" ]; then
     echo "Using ants for registration..."

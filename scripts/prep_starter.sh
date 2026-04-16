@@ -21,10 +21,12 @@ python3 get_slice_timing_file.py \
 
 echo "Now correcting for slice timing using FSL's slicetimer... "
 
+TR=$(python3 -c "import json; print(json.load(open('$inputs_dir/fmri_input.json'))['RepetitionTime'])")
+
 slicetimer \
     -i "$inputs_dir/fmri_input.nii.gz" \
     -o "$prep_func/fmri_stc.nii.gz" \
-    -r "$(fslinfo "$inputs_dir/fmri_input.nii.gz" | awk '/^pixdim4/ {print $2}')" \
+    -r "$TR" \
     --tcustom="$prep_func/slicetiming_fsl.txt"
 
 echo "Now correcting for motion using FSL's mcflirt... "
