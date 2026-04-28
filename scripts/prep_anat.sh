@@ -1,12 +1,14 @@
 #! /bin/bash
 
 set -euo pipefail
-source "$(dirname "$0")/config.sh"
+source "$(dirname "$0")/config.sh" 
 echo "the registration method you chose is $reg_method"
 mkdir -p "$prep_anat"
 
 t1_init="${inputs_dir}/T1.nii.gz"
-echo "Brain extraction using antsBrainExtraction.sh... "
+
+
+echo "Brain extraction and bias field correction"
 N4BiasFieldCorrection -d 3 -i $t1_init -o ${prep_anat}/T1_n4.nii.gz \
 -r 1 -s 4 -v > /dev/null 2>&1
 t1="$prep_anat/T1_n4.nii.gz"
@@ -89,6 +91,8 @@ for i in {0..2}; do
         --ref=$MNI \
         --warp=${prep_transforms}/T1_to_MNI.nii.gz \
         --out=${prep_anat}/MNI_${type}.nii.gz
+
+    fslmaths ${prep_anat}/MNI_${type}.nii.gz -thr 0.5 -bin ${prep_anat}/MNI_bin_${type}.nii.gz
 done
 
 

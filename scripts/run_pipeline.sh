@@ -25,3 +25,5 @@ echo "➡️ Step 5: Nuisance regression"
 ./nuisance_regression_bp_filtering.sh
 
 echo "✅ Pipeline finished successfully!"
+echo "Let's do quality control."
+./QC.sh

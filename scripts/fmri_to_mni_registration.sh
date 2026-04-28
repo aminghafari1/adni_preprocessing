@@ -1,7 +1,7 @@
 #! /bin/bash
 cwd="$(pwd)"
 set -euo pipefail
-source "$(dirname "$0")/config.sh"
+source "$(dirname "$0")/config.sh" 
 t1="$inputs_dir/T1.nii.gz"
 t1_brain="$prep_anat/T1_brain.nii.gz"
 fmri_sc="$prep_func/fmri_sc.nii.gz"

@@ -1,13 +1,14 @@
 #! /bin/bash
 
 set -euo pipefail
-source "$(dirname "$0")/config.sh"
+source "$(dirname "$0")/config.sh" 
 echo "Processing subject: $sub_code"
 mkdir -p "$adni_preprocessing"
 mkdir -p "$prep_dir"
 mkdir -p "$prep_fmap"
 mkdir -p "$prep_func"
 mkdir -p "$prep_transforms"
+mkdir -p "$qc_dir"
 
 echo "Running synthstrip for brain extraction on the magnitude images... "
 ~/synthstrip-singularity -i "$inputs_dir/mag1.nii.gz" -o "$prep_fmap/mag1_brain.nii.gz" 

@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-source "$(dirname "$0")/config.sh"
+source "$(dirname "$0")/config.sh" 
 
 echo "Calculating different tissues signals for regression."
 
@@ -38,5 +38,4 @@ ncols=$(python3 build_confounds.py \
     -prefix "$prep_func/fmri_MNI_preprocessed.nii.gz" \
     -ort "$confounds_dir/confounds_matrix_final.txt" \
     -polort 2 \
-    -passband $HP_FREQ $LP_FREQ \
     -mask "$MNIMASK" -overwrite

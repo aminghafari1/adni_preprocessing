@@ -6,7 +6,7 @@ source "$CONFIG_DIR/utils_path.sh"
 # ========================
 # SUBJECT / PATH SETTINGS
 # ========================
-sub_code="002_0413"
+sub_code="002_6007"
 base_dir="/home/aghaffari/adni"
 sub_dir="$base_dir/$sub_code"
 
@@ -20,6 +20,7 @@ prep_func="$prep_dir/func"
 confounds_dir="$prep_func/confounds"
 prep_anat="$prep_dir/anat"
 prep_transforms="$prep_dir/xfm"
+qc_dir="$prep_dir/qc"
 
 
 # ========================
@@ -28,13 +29,15 @@ prep_transforms="$prep_dir/xfm"
 MNI="${FSLDIR}/data/standard/MNI152_T1_2mm.nii.gz"
 MNIBRAIN="${FSLDIR}/data/standard/MNI152_T1_2mm_brain.nii.gz"
 MNIMASK="/home/aghaffari/FDG_mask_2mm.nii.gz"
-
+MNIGM="${base_dir}/MNI_segmentation/MNI_GM.nii.gz"
+MNIWM="${base_dir}/MNI_segmentation/MNI_WM.nii.gz"
+MNIPARCEL="${base_dir}/MNI_segmentation/shen_2mm_268_parcellation.nii.gz"
 # ========================
 # DEFAULT OPTIONS
 # ========================
 SMOOTH_FWHM=5
-fd_threshold=0.3
+fd_threshold=0.5
 dvars_z=3.0
 reg_method="fsl"   # or "fsl"
 HP_FREQ=0.01
-LP_FREQ=0.1
+LP_FREQ=0.25
