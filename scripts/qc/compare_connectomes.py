@@ -31,7 +31,11 @@ def save_connectomes_side_by_side(raw_conn, proc_conn, out_path):
     vmin = min(raw_conn.min(), proc_conn.min())
     vmax = max(raw_conn.max(), proc_conn.max())
 
-    fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+    fig, axes = plt.subplots(
+        1, 2,
+        figsize=(10, 5),
+        constrained_layout=True
+    )
 
     im0 = axes[0].imshow(raw_conn, vmin=vmin, vmax=vmax)
     axes[0].set_title("Raw Connectome")
@@ -43,10 +47,15 @@ def save_connectomes_side_by_side(raw_conn, proc_conn, out_path):
     axes[1].set_xlabel("Parcel")
     axes[1].set_ylabel("Parcel")
 
-    cbar = fig.colorbar(im1, ax=axes, location='right', fraction=0.02, pad=0.04)
+    cbar = fig.colorbar(
+        im1,
+        ax=axes,
+        location='right',
+        fraction=0.02,
+        pad=0.04
+    )
     cbar.set_label("Correlation")
 
-    plt.tight_layout()
     plt.savefig(out_path, dpi=200)
     plt.close()
 
@@ -59,7 +68,12 @@ def save_distributions_side_by_side(raw_vals, proc_vals, out_path):
         80
     )
 
-    fig, axes = plt.subplots(1, 2, figsize=(10, 5), sharey=True)
+    fig, axes = plt.subplots(
+    1, 2,
+    figsize=(10, 5),
+    sharey=True,
+    constrained_layout=True
+    )
 
     axes[0].hist(raw_vals, bins=bins)
     axes[0].set_title("Raw Distribution")
@@ -70,7 +84,7 @@ def save_distributions_side_by_side(raw_vals, proc_vals, out_path):
     axes[1].set_title("Processed Distribution")
     axes[1].set_xlabel("Correlation")
 
-    plt.tight_layout()
+    
     plt.savefig(out_path, dpi=200)
     plt.close()
 

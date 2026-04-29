@@ -1,7 +1,7 @@
 #! /bin/bash
 
 set -euo pipefail
-source "$(dirname "$0")/config.sh" 
+source "$PROJECT_ROOT/config.sh"
 echo "the registration method you chose is $reg_method"
 mkdir -p "$prep_anat"
 

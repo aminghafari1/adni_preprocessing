@@ -1,7 +1,7 @@
 #! /bin/bash
 
 set -euo pipefail
-source "$(dirname "$0")/config.sh" 
+source "$PROJECT_ROOT/config.sh"
 echo "Processing subject: $sub_code"
 mkdir -p "$adni_preprocessing"
 mkdir -p "$prep_dir"
@@ -13,9 +13,10 @@ mkdir -p "$qc_dir"
 echo "Running synthstrip for brain extraction on the magnitude images... "
 ~/synthstrip-singularity -i "$inputs_dir/mag1.nii.gz" -o "$prep_fmap/mag1_brain.nii.gz" 
 ~/synthstrip-singularity -i "$inputs_dir/mag2.nii.gz" -o "$prep_fmap/mag2_brain.nii.gz" 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "Getting slice timing information from the json file and saving it in a text file for FSL... "
-python3 get_slice_timing_file.py \
+python3 "$SCRIPT_DIR/get_slice_timing_file.py" \
     "$inputs_dir/fmri_input.json" \
     "$inputs_dir/fmri_input.nii.gz" \
     "$prep_func/slicetiming_fsl.txt"
@@ -35,7 +36,7 @@ mcflirt -in "$prep_func/fmri_stc.nii.gz" -out "$prep_func/fmri_mc.nii.gz" -plots
 
 confounds_dir="$prep_func/confounds"
 mkdir -p "$confounds_dir"
-python3 compute_fd.py \
+python3 "$SCRIPT_DIR/compute_fd.py" \
     "$prep_func/fmri_mc.nii.gz.par" \
     "$confounds_dir/framewise.txt"
 

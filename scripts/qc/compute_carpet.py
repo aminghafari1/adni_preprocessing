@@ -30,6 +30,9 @@ if __name__ == "__main__":
     processed_mean=compute_carpet_plot(processed)
     motion=np.loadtxt(motion)
     dvars=np.loadtxt(dvars)
+    print(f"Maximum_FD={motion.max():.4f}")
+    high_fd_percent = (motion > fd_threshold).mean() * 100
+    print(f"HIGH_FD_PERCENT={high_fd_percent:.2f}")
     fig, axes = plt.subplots(
     4, 1,
     figsize=(10, 8),

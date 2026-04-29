@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 echo "Entered config.sh"
-CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$CONFIG_DIR/utils_path.sh"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+echo "📂 Project root: $PROJECT_ROOT"
+export PROJECT_ROOT
+source "$PROJECT_ROOT/utils_path.sh"
 
 # ========================
 # SUBJECT / PATH SETTINGS
 # ========================
-sub_code="002_6007"
 base_dir="/home/aghaffari/adni"
 sub_dir="$base_dir/$sub_code"
 

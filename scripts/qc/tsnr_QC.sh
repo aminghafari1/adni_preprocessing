@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-source "$(dirname "$0")/config.sh"
+source "$PROJECT_ROOT/config.sh"
 
 if [ "$#" -ne 3 ]; then
     echo "Usage: $0 <fmri_4D.nii.gz> <output_tsnr.nii.gz> <brain_mask.nii.gz>"
@@ -11,7 +11,7 @@ fi
 fmri_file="$1"
 tsnr_out="$2"
 brain_mask="$3"
-
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 out_dir="$(dirname "$tsnr_out")"
 mean_img="$out_dir/temp_mean.nii.gz"
 std_img="$out_dir/temp_std.nii.gz"
@@ -33,21 +33,14 @@ echo "Calculating mean and median tSNR inside mask..."
 mean_tsnr=$(fslstats "$tsnr_out" -k "$brain_mask" -M)
 median_tsnr=$(fslstats "$tsnr_out" -k "$brain_mask" -P 50)
 
+export mean_tsnr
+export median_tsnr
+
 echo "Done."
 echo "tSNR map saved to: $tsnr_out"
-echo "Mean tSNR inside mask   : $mean_tsnr"
-echo "Median tSNR inside mask : $median_tsnr"
-
-metrics_file="$out_dir/tsnr_metrics.txt"
-{
-    echo "mean_tsnr: $mean_tsnr"
-    echo "median_tsnr: $median_tsnr"
-} > "$metrics_file"
-
-echo "Metrics saved to: $metrics_file"
 
 echo "Cleaning temporary files..."
 rm -f "$mean_img" "$std_img" "$std_safe"
 
 echo "Going for region-based tSNR calculation..."
-python3 regions_tsnr.py $fmri_file $out_dir $MNIPARCEL
+python3 "$SCRIPT_DIR/regions_tsnr.py" $fmri_file $out_dir $MNIPARCEL

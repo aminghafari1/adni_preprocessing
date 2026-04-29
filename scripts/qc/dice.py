@@ -40,7 +40,7 @@ if __name__ == "__main__":
     qc_dir=sys.argv[4]
 
     dice_value = compute_dice(mask1_path, mask2_path)
-    print(f"Dice coefficient: {dice_value:.4f}")
+    print(f"DICE_RESULT={dice_value:.4f}")
 
 
     display = plotting.plot_roi(
@@ -52,5 +52,6 @@ if __name__ == "__main__":
     address = f"{qc_dir}/{tissue}_overlap.png"
     display.savefig(address)
     display.close() 
+    
 
     
