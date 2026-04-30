@@ -1,0 +1,13 @@
+name: fmri_pipeline
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pandas
+  - matplotlib
+  - nibabel
+  - nilearn
+  - scipy
+  - ants
+prefix: /home/aghaffari/miniconda3/envs/fmri_pipeline

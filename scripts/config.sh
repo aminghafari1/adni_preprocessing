@@ -40,5 +40,6 @@ SMOOTH_FWHM=5
 fd_threshold=0.5
 dvars_z=3.0
 reg_method="fsl"   # or "fsl"
+FIELDMAP_METHOD="phase"  # or "blip"
 HP_FREQ=0.01
 LP_FREQ=0.25

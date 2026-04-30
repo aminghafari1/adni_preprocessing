@@ -13,9 +13,6 @@ N4BiasFieldCorrection -d 3 -i $t1_init -o ${prep_anat}/T1_n4.nii.gz \
 -r 1 -s 4 -v > /dev/null 2>&1
 t1="$prep_anat/T1_n4.nii.gz"
 
-
-
-
 echo "🧠🔄 Aligning Anatomical brain to MNI brain 🔄🧩"
 
 if [ "$reg_method" = "ants" ]; then
