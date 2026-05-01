@@ -9,15 +9,12 @@ n_dirs=$(find "$fmap_dir" -mindepth 1 -maxdepth 1 -type d | wc -l)
 temp_dir="$sub_dir/temp"
 rm -rf "$temp_dir"
 mkdir -p "$sub_dir/temp"
-if [ "$FIELDMAP_METHOD" = "phase"]; then
+if [ "$FIELDMAP_METHOD" = "phase" ]; then
     if [ "$n_dirs" -eq 3 ]; then
         echo "There are 3 folders, one is for phase, one is for mag1, and one is for mag2."
         for dir in "$fmap_dir"/*/; do
             [ -d "$dir" ] || continue   # safety check
             echo "Processing: $dir"
-            if [ ! -d $inputs_dir ]; then
-                mkdir -p $inputs_dir
-            fi
             echo "Converting dicom files to nifti files... "
             ~/dcmniix/dcm2niix -z y -o "$temp_dir" "$dir"
             for f in "$temp_dir"/*.nii.gz; do

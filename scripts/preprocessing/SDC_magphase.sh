@@ -11,12 +11,24 @@ echo "Getting mean of the fMRI time series for registration... "
 fslmaths "$prep_func/fmri_mc.nii.gz" -Tmean "$prep_func/fmri_mc_avg.nii.gz"
 ~/synthstrip-singularity -i "$prep_func/fmri_mc_avg.nii.gz" -o "$prep_func/fmri_mc_avg_brain.nii.gz" -m "$prep_func/fmri_mc_avg_brain_mask.nii.gz"
 
+echo "Get delta TE in milliseconds from the json file... "
+DELTA_TE=$(python3 -c "
+import json
+with open('$inputs_dir/phase_difference.json') as f:
+    meta = json.load(f)
+
+te1 = float(meta['EchoTime1'])
+te2 = float(meta['EchoTime2'])
+
+print(abs(te2 - te1) * 1000)
+")
+
 echo "Preparing the fieldmap using FSL's fsl_prepare_fieldmap... "
-fsl_prepare_fieldmap SIEMENS "$inputs_dir/phase_difference.nii.gz" "$prep_fmap/mag1_brain.nii.gz" "$prep_fmap/fieldmap_rads.nii.gz" 2.46
+fsl_prepare_fieldmap SIEMENS "$inputs_dir/phase_difference.nii.gz" "$prep_fmap/mag1_brain.nii.gz" "$prep_fmap/fieldmap_rads.nii.gz" $DELTA_TE
 ## This 2.46 is the difference between the two TEs and should be automated later by reading the json files.
 
-echo "We need to take the field map to the same space as EPI, first, smooth using fugure."
-fugue --loadfmap="$prep_fmap/fieldmap_rads.nii.gz" -s 2.0 --savefmap="$prep_fmap/fieldmap_smooth.nii.gz"
+echo "We need to take the field map to the same space as EPI, first, smooth using fugue."
+fugue --loadfmap="$prep_fmap/fieldmap_rads.nii.gz" -s $fieldmap_smoothing_fwhm --savefmap="$prep_fmap/fieldmap_smooth.nii.gz"
 
 dwell=$(python3 -c "import json; print(json.load(open('$inputs_dir/fmri_input.json'))['EffectiveEchoSpacing'])")
 

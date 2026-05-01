@@ -8,7 +8,7 @@ fmri_sc="$prep_func/fmri_sc.nii.gz"
 
 echo "Calculating mean functional image across time for registration..."
 fslmaths $fmri_sc -Tmean $prep_func/fmri_sc_avg.nii.gz
-fmri_sc_avg="$prep_func/fmri_mc_avg.nii.gz"
+fmri_sc_avg="$prep_func/fmri_sc_avg.nii.gz"
 
 echo "🧠🔄 functional brain to anatomical 🔄🧩"
 ~/synthstrip-singularity -i $fmri_sc_avg -o $prep_func/fmri_sc_avg_brain.nii.gz -m $prep_func/fmri_sc_avg_brain_mask.nii.gz

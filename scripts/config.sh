@@ -37,6 +37,7 @@ MNIPARCEL="${base_dir}/MNI_segmentation/shen_2mm_268_parcellation.nii.gz"
 # DEFAULT OPTIONS
 # ========================
 SMOOTH_FWHM=5
+fieldmap_smoothing_fwhm=2.0
 fd_threshold=0.5
 dvars_z=3.0
 reg_method="fsl"   # or "fsl"

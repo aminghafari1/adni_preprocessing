@@ -12,16 +12,15 @@ mkdir -p "$qc_dir"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+TR=$(python3 -c "import json; print(json.load(open('$inputs_dir/fmri_input.json'))['RepetitionTime'])")
+
 echo "Getting slice timing information from the json file and saving it in a text file for FSL... "
 python3 "$SCRIPT_DIR/get_slice_timing_file.py" \
     "$inputs_dir/fmri_input.json" \
-    "$inputs_dir/fmri_input.nii.gz" \
+    "$TR" \
     "$prep_func/slicetiming_fsl.txt"
 
 echo "Now correcting for slice timing using FSL's slicetimer... "
-
-TR=$(python3 -c "import json; print(json.load(open('$inputs_dir/fmri_input.json'))['RepetitionTime'])")
-
 slicetimer \
     -i "$inputs_dir/fmri_input.nii.gz" \
     -o "$prep_func/fmri_stc.nii.gz" \
