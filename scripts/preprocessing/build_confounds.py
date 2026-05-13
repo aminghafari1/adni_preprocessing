@@ -1,49 +1,44 @@
 import sys
+import argparse
 import numpy as np
 
 
+def expand_motion(motion, model):
+    """Expand 6 motion params to 12 or 24 (Friston) model."""
+    deriv = np.vstack([np.zeros((1, 6)), np.diff(motion, axis=0)])
+    if model == 6:
+        return motion
+    if model == 12:
+        return np.hstack([motion, deriv])
+    # 24: original + deriv + squared + squared deriv
+    return np.hstack([motion, deriv, motion**2, deriv**2])
+
+
 def main():
-    if len(sys.argv) != 4:
-        print("Usage: python3 build_confounds.py <init_confounds> <fd_regressors> <output>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("init_confounds")
+    parser.add_argument("output")
+    parser.add_argument("--motion-model", type=int, choices=[6, 12, 24], default=6)
+    args = parser.parse_args()
 
-    init_file = sys.argv[1]
-    fd_file = sys.argv[2]
-    out_file = sys.argv[3]
-
-    # Load initial confounds (motion + WM + CSF)
-    X = np.loadtxt(init_file)
+    X = np.loadtxt(args.init_confounds)
     X = np.atleast_2d(X)
 
-    # Demean all columns
-    X = X - X.mean(axis=0, keepdims=True)
+    # First 6 columns are motion params; remainder are tissue signals
+    motion = X[:, :6]
+    tissue = X[:, 6:]
 
-    # Load FD regressors (can be empty)
-    try:
-        fd = np.loadtxt(fd_file)
-        fd = np.atleast_2d(fd)
+    motion_expanded = expand_motion(motion, args.motion_model)
 
-        # If only one column, fix shape
-        if fd.ndim == 1:
-            fd = fd.reshape(-1, 1)
+    X_final = np.hstack([motion_expanded, tissue])
+    X_final = X_final - X_final.mean(axis=0, keepdims=True)
 
-        # Check matching timepoints
-        if fd.shape[0] != X.shape[0]:
-            raise ValueError("FD regressors and confounds have different number of timepoints")
-
-        # Concatenate
-        X_final = np.hstack((X, fd))
-
-    except Exception:
-        print("No FD regressors found or empty file — using only base confounds.")
-        X_final = X
-
-    # Save
-    np.savetxt(out_file, X_final, fmt="%.6f")
-    print(f"Final confound matrix saved: {out_file}", file=sys.stderr)
+    np.savetxt(args.output, X_final, fmt="%.6f")
+    print(f"Final confound matrix saved: {args.output}", file=sys.stderr)
     print(f"Shape: {X_final.shape}", file=sys.stderr)
 
     print(X_final.shape[1])
+
 
 if __name__ == "__main__":
     main()

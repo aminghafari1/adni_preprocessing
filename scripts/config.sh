@@ -9,12 +9,13 @@ source "$PROJECT_ROOT/utils_path.sh"
 # SUBJECT / PATH SETTINGS
 # ========================
 base_dir="/home/aghaffari/adni"
-sub_dir="$base_dir/$sub_code"
+group="CN"  # CN or MCI
+sub_dir="$base_dir/$group/$sub_code"
 
 get_subject_paths "$sub_dir"
 
 adni_preprocessing="$base_dir/preprocessed"
-prep_dir="$adni_preprocessing/$sub_code"
+prep_dir="$adni_preprocessing/$group/$sub_code"
 inputs_dir="$prep_dir/compressed_inputs"
 prep_fmap="$prep_dir/fmap"
 prep_func="$prep_dir/func"
@@ -40,7 +41,8 @@ SMOOTH_FWHM=5
 fieldmap_smoothing_fwhm=2.0
 fd_threshold=0.5
 dvars_z=3.0
-reg_method="fsl"   # or "fsl"
+reg_method="fsl"   # or "fsl or ants"
 FIELDMAP_METHOD="phase"  # or "blip"
 HP_FREQ=0.01
 LP_FREQ=0.25
+MOTION_MODEL=12  # 6, 12, or 24 (Friston)

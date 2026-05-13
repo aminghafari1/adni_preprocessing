@@ -33,11 +33,8 @@ bash "$PROJECT_ROOT/preprocessing/prep_anat.sh"
 echo "➡️ Step 4: fMRI → MNI registration"
 bash "$PROJECT_ROOT/preprocessing/fmri_to_mni_registration.sh"
 
-echo "➡️ Step 5: Smoothing"
-bash "$PROJECT_ROOT/preprocessing/spatial_smoothing.sh"
-
-echo "➡️ Step 6: Nuisance regression"
-bash "$PROJECT_ROOT/preprocessing/nuisance_regression_bp_filtering.sh"
+echo "➡️ Step 5: Nuisance regression, smoothing, and bandpass filtering"
+bash "$PROJECT_ROOT/preprocessing/func_postprocess.sh"
 
 echo "✅ Pipeline finished successfully!"
 echo "Let's do quality control."

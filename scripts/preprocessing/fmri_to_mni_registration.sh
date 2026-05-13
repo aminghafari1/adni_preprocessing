@@ -17,7 +17,7 @@ fmri_sc_avg_brain="$prep_func/fmri_sc_avg_brain.nii.gz"
 if [ "$reg_method" = "fsl" ]; then
     echo "Using fsl for registration..."
     echo "🧠🔄 Now registering functional to anatomical... 🔄"
-    epi_reg --epi=$fmri_sc_avg --t1=$t1 --t1brain=$t1_brain --wmseg=$prep_anat/T1_WM.nii.gz --out=$prep_transforms/fmri_to_T1 
+    epi_reg --epi=$fmri_sc_avg --t1=$t1 --t1brain=$t1_brain --wmseg=$prep_anat/T1_WM_bin.nii.gz --out=$prep_transforms/fmri_to_T1 
     mv $prep_transforms/fmri_to_T1.nii.gz $prep_func/fmri_sc_avg_in_T1.nii.gz  ## only for qc
     aff_fmri_to_t1=$prep_transforms/fmri_to_T1.mat
     t1_to_MNI_warp=$prep_transforms/T1_to_MNI.nii.gz
@@ -43,8 +43,8 @@ elif [ "$reg_method" = "ants" ]; then
     aff_fmri_to_t1=${prep_transforms}/fmri2T1_0GenericAffine.mat
     t1_to_MNI_init=${prep_transforms}/T1_to_MNI_0GenericAffine.mat
     t1_to_MNI_warp=${prep_transforms}/T1_to_MNI_1Warp.nii.gz
-
-    antsApplyTransforms -d 3 -i $fmri_avg_brain -r $MNIbrain \
+    
+    antsApplyTransforms -d 3 -i $fmri_sc_avg_brain -r $MNIBRAIN \
         -t $t1_to_MNI_warp -t $t1_to_MNI_init -t $aff_fmri_to_t1 -o $prep_func/fmri_avg_in_MNI.nii.gz
 
     input_4d="$fmri_sc"

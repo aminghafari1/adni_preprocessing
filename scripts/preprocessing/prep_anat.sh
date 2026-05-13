@@ -92,4 +92,6 @@ for i in {0..2}; do
     fslmaths ${prep_anat}/MNI_${type}.nii.gz -thr 0.5 -bin ${prep_anat}/MNI_bin_${type}.nii.gz
 done
 
+fslmaths ${prep_anat}/T1_WM.nii.gz -thr 0.5 -bin ${prep_anat}/T1_WM_bin.nii.gz
+
 
